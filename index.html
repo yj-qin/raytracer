@@ -1,0 +1,52 @@
+<html>
+  <body>
+    <canvas id="canvas"></canvas>
+    <p>
+      <label>Progress:</label>
+      <progress id="progress" max="100" value="0"></progress>
+    </p>
+    <button type="button" id="button">Render</button>
+  </body>
+  <script>
+    function setProgress(n) {
+      progress.setAttribute("value", n);
+    }
+
+    var IMAGE_WIDTH = 400;
+    var ASPECT_RATIO = 16.0 / 9.0;
+    var IMAGE_HEIGHT = Math.round(IMAGE_WIDTH / ASPECT_RATIO);
+    IMAGE_HEIGHT = Math.max(1, IMAGE_HEIGHT);
+    const canvas = document.getElementById("canvas");
+    canvas.width = IMAGE_WIDTH;
+    canvas.height = IMAGE_HEIGHT;
+    const button = document.getElementById("button");
+    const progress = document.getElementById("progress");
+    const offscreen = canvas.transferControlToOffscreen();
+
+    const worker = new Worker("worker.js");
+    worker.postMessage(
+      {
+        type: "INIT",
+        canvas: offscreen,
+        width: IMAGE_WIDTH,
+        height: IMAGE_HEIGHT,
+      },
+      [offscreen]
+    );
+    worker.addEventListener("message", (event) => {
+      if (event.data.type === "SET_PROGRESS") {
+        const { progress } = event.data;
+        setProgress(progress);
+      } else if (event.data.type === "DONE") {
+        button.removeAttribute("disabled");
+      }
+    });
+
+    button.onclick = () => {
+      button.setAttribute("disabled", "true");
+      worker.postMessage({
+        type: "RENDER",
+      });
+    };
+  </script>
+</html>

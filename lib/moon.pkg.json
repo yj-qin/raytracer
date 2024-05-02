@@ -1,0 +1,8 @@
+{
+  "name": "lib",
+  "link": {
+    "wasm-gc": {
+      "exports": ["render_image"]
+    }
+  }
+}
