@@ -4,7 +4,6 @@ struct Vec3 {
   z : Double
 }
 
-
 fn vec3(x : Double, y : Double, z : Double) -> Vec3 {
   { x, y, z }
 }
@@ -36,12 +35,18 @@ fn random_unit_vector() -> Vec3 {
   unit_vector(random_in_unit_sphere())
 }
 
-fn random_on_hemisphere(normal : Vec3) -> Vec3 {
-  let v = random_unit_vector()
-  if v.dot(normal) > 0.0 {
-    v
+fn random_in_unit_disk() -> Vec3 {
+  while true {
+    let p = vec3(
+      random_double_range(-1.0, 1.0),
+      random_double_range(-1.0, 1.0),
+      0.0,
+    )
+    if p.length_squared() < 1.0 {
+      return p
+    }
   } else {
-    -v
+    vec3(0.0, 0.0, 0.0)
   }
 }
 

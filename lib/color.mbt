@@ -2,6 +2,20 @@ type Color Vec3
 
 let intensity : Interval = interval(0.000, 0.999)
 
+fn random_color() -> Color {
+  Color({ x: random_double(), y: random_double(), z: random_double() })
+}
+
+fn random_color_range(min : Double, max : Double) -> Color {
+  Color(
+    {
+      x: random_double_range(min, max),
+      y: random_double_range(min, max),
+      z: random_double_range(min, max),
+    },
+  )
+}
+
 fn color(x : Double, y : Double, z : Double) -> Color {
   Color({ x, y, z })
 }
