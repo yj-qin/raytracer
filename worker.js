@@ -1,8 +1,8 @@
 let wasmModule = null;
-let context = null;
-let imagedata = null;
 let image_width = 0;
 let image_height = 0;
+let random_seed = 0;
+let worker_id = -1;
 
 const [log, flush] = (() => {
   let buffer = [];
@@ -26,28 +26,12 @@ const [log, flush] = (() => {
   return [log, flush];
 })();
 
+function incrProgress() {
+  self.postMessage({ type: "INCR_PROGRESS" });
+}
+
 function setPixel(x, r, g, b, a) {
-  imagedata.data[x] = r;
-  imagedata.data[x + 1] = g;
-  imagedata.data[x + 2] = b;
-  imagedata.data[x + 3] = a;
-}
-
-function clearImage() {
-  for (let i = 0; i < imagedata.data.length; i += 4) {
-    imagedata.data[i] = 0;
-    imagedata.data[i + 1] = 0;
-    imagedata.data[i + 2] = 0;
-    imagedata.data[i + 3] = 0;
-  }
-}
-
-function showImage() {
-  context.putImageData(imagedata, 0, 0);
-}
-
-function setProgress(progress) {
-  self.postMessage({ type: "SET_PROGRESS", progress });
+  self.postMessage({ type: "SET_PIXEL", x, r, g, b, a });
 }
 
 const importObject = {
@@ -57,11 +41,11 @@ const importObject = {
   spectest: {
     print_char: log,
   },
-  time: {
-    timestamp: () => new Date().getTime(),
+  random: {
+    seed: () => random_seed,
   },
   progress: {
-    set_progress: (progress) => setProgress(progress),
+    incr_progress: () => incrProgress(),
   },
 };
 
@@ -74,16 +58,21 @@ self.addEventListener("message", (event) => {
       wasmModule = instantiatedModule;
       wasmModule.instance.exports._start();
     });
-    const { canvas, width, height } = event.data;
+    const { width, height, seed, id } = event.data;
     image_width = width;
     image_height = height;
-    context = canvas.getContext("2d");
-    imagedata = context.createImageData(width, height);
+    random_seed = seed;
+    worker_id = id;
+    console.log(`Worker ${worker_id} ready.`);
   } else if (event.data.type === "RENDER") {
-    clearImage();
+    console.log(`Worker ${worker_id} start render.`);
     const renderImage = wasmModule.instance.exports["render_image"];
     renderImage(image_width, image_height);
-    showImage();
-    self.postMessage({ type: "DONE" });
+  } else if (event.data.type === "PARTIAL_RENDER") {
+    const { start, end } = event.data;
+    console.log(`Worker ${worker_id} start partial render ${start}-${end}.`);
+    const partialRenderImage =
+      wasmModule.instance.exports["partial_render_image"];
+    partialRenderImage(image_width, image_height, start, end);
   }
 });

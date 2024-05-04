@@ -5,48 +5,124 @@
       <label>Progress:</label>
       <progress id="progress" max="100" value="0"></progress>
     </p>
-    <button type="button" id="button">Render</button>
+    <button type="button" id="render-button">Render</button>
+    <button type="button" id="stop-button">Stop</button>
   </body>
   <script>
-    function setProgress(n) {
-      progress.setAttribute("value", n);
-    }
-
-    var IMAGE_WIDTH = 1200;
-    var ASPECT_RATIO = 16.0 / 9.0;
-    var IMAGE_HEIGHT = Math.round(IMAGE_WIDTH / ASPECT_RATIO);
+    let IMAGE_WIDTH = 400;
+    let ASPECT_RATIO = 16.0 / 9.0;
+    let IMAGE_HEIGHT = Math.round(IMAGE_WIDTH / ASPECT_RATIO);
     IMAGE_HEIGHT = Math.max(1, IMAGE_HEIGHT);
     const canvas = document.getElementById("canvas");
     canvas.width = IMAGE_WIDTH;
     canvas.height = IMAGE_HEIGHT;
-    const button = document.getElementById("button");
+    const context = canvas.getContext("2d");
+    const imagedata = context.createImageData(IMAGE_WIDTH, IMAGE_HEIGHT);
+    const renderBtn = document.getElementById("render-button");
+    const stopBtn = document.getElementById("stop-button");
     const progress = document.getElementById("progress");
-    const offscreen = canvas.transferControlToOffscreen();
+    const seed = new Date().getTime();
+    let renderPixels = 0;
+    let totalPixels = 0;
+    let workerNum = 8;
+    let renderWorkers = [];
 
-    const worker = new Worker("worker.js");
-    worker.postMessage(
-      {
-        type: "INIT",
-        canvas: offscreen,
-        width: IMAGE_WIDTH,
-        height: IMAGE_HEIGHT,
-      },
-      [offscreen]
-    );
-    worker.addEventListener("message", (event) => {
-      if (event.data.type === "SET_PROGRESS") {
-        const { progress } = event.data;
-        setProgress(progress);
-      } else if (event.data.type === "DONE") {
-        button.removeAttribute("disabled");
+    function setPixel(x, r, g, b, a) {
+      imagedata.data[x] = r;
+      imagedata.data[x + 1] = g;
+      imagedata.data[x + 2] = b;
+      imagedata.data[x + 3] = a;
+      showImage();
+    }
+
+    function clearImage() {
+      for (let i = 0; i < imagedata.data.length; i += 4) {
+        imagedata.data[i] = 255;
+        imagedata.data[i + 1] = 255;
+        imagedata.data[i + 2] = 255;
+        imagedata.data[i + 3] = 255;
       }
-    });
+    }
 
-    button.onclick = () => {
-      button.setAttribute("disabled", "true");
-      worker.postMessage({
-        type: "RENDER",
-      });
+    function showImage() {
+      context.putImageData(imagedata, 0, 0);
+    }
+
+    function setProgress() {
+      progress.setAttribute("value", (renderPixels / totalPixels) * 100);
+      if (renderPixels === totalPixels) {
+        // Done
+        renderBtn.removeAttribute("disabled");
+        showImage();
+      }
+    }
+
+    function incrProgress() {
+      renderPixels += 1;
+      setProgress();
+    }
+
+    function resetProgress() {
+      renderPixels = 0;
+      totalPixels = IMAGE_WIDTH * IMAGE_HEIGHT;
+      setProgress();
+    }
+
+    function startRender() {
+      renderBtn.setAttribute("disabled", "true");
+      resetProgress();
+      clearImage();
+      let colsPerWorker = IMAGE_WIDTH / workerNum;
+      for (let i = 0; i < workerNum; i++) {
+        let start = i * colsPerWorker;
+        let end = Math.min(IMAGE_WIDTH, (i + 1) * colsPerWorker);
+        renderWorkers[i].postMessage({
+          type: "PARTIAL_RENDER",
+          start,
+          end,
+        });
+      }
+    }
+
+    function stopRender() {
+      for (const worker of renderWorkers) {
+        worker.terminate();
+      }
+      showImage();
+      renderBtn.removeAttribute("disabled");
+    }
+
+    function initWorkers() {
+      renderWorkers = [];
+      for (let i = 0; i < workerNum; i++) {
+        const worker = new Worker("worker.js");
+        worker.postMessage({
+          type: "INIT",
+          width: IMAGE_WIDTH,
+          height: IMAGE_HEIGHT,
+          seed,
+          id: i,
+        });
+        worker.addEventListener("message", (event) => {
+          if (event.data.type === "INCR_PROGRESS") {
+            incrProgress();
+          } else if (event.data.type === "SET_PIXEL") {
+            let { x, r, g, b, a } = event.data;
+            setPixel(x, r, g, b, a);
+          }
+        });
+        renderWorkers.push(worker);
+      }
+    }
+
+    renderBtn.onclick = () => {
+      startRender();
     };
+    stopBtn.onclick = () => {
+      stopRender();
+      initWorkers();
+    };
+
+    initWorkers();
   </script>
 </html>

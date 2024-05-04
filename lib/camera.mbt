@@ -90,23 +90,20 @@ fn Camera::new(
 fn render(self : Camera, world : Hittable) -> Unit {
   for j = 0; j < self.image_height; j = j + 1 {
     println("Scanlines remaining: " + (self.image_height - j).to_string())
-    set_progress(j.to_double() / self.image_height.to_double() * 100.0)
     for i = 0; i < self.image_width; i = i + 1 {
       self.render_pixel(world, i, j)
     }
   }
 }
 
-fn render_tile(
+fn render_cols(
   self : Camera,
   world : Hittable,
-  x_start : Int,
-  x_end : Int,
-  y_start : Int,
-  y_end : Int
+  start : Int,
+  end : Int
 ) -> Unit {
-  for j = y_start; j < y_end; j = j + 1 {
-    for i = x_start; j < x_end; i = i + 1 {
+  for j = 0; j < self.image_height; j = j + 1 {
+    for i = start; i < end; i = i + 1 {
       self.render_pixel(world, i, j)
     }
   }
@@ -122,6 +119,7 @@ fn render_pixel(self : Camera, world : Hittable, x : Int, y : Int) -> Unit {
   pixel_color = pixel_color.mul(self.pixel_samples_scale)
   let (r, g, b) = pixel_color.rgb()
   set_pixel(n, r, g, b, 255)
+  incr_progress()
 }
 
 // Construct a camera ray originating from the origin and directed at randomly sampled
