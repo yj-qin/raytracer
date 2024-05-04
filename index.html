@@ -4,6 +4,7 @@
     <p>
       <label>Progress:</label>
       <progress id="progress" max="100" value="0"></progress>
+      <label id="progress-text"></label>
     </p>
     <button type="button" id="render-button">Render</button>
     <button type="button" id="stop-button">Stop</button>
@@ -21,9 +22,10 @@
     const renderBtn = document.getElementById("render-button");
     const stopBtn = document.getElementById("stop-button");
     const progress = document.getElementById("progress");
+    const progressText = document.getElementById("progress-text");
     const seed = new Date().getTime();
-    let renderPixels = 0;
-    let totalPixels = 0;
+    let doneLines = 0;
+    let currentLine = 0;
     let workerNum = 8;
     let renderWorkers = [];
 
@@ -42,6 +44,7 @@
         imagedata.data[i + 2] = 255;
         imagedata.data[i + 3] = 255;
       }
+      showImage();
     }
 
     function showImage() {
@@ -49,22 +52,28 @@
     }
 
     function setProgress() {
-      progress.setAttribute("value", (renderPixels / totalPixels) * 100);
-      if (renderPixels === totalPixels) {
+      progress.setAttribute("value", (doneLines / IMAGE_HEIGHT) * 100);
+      progressText.innerText = `${doneLines}/${IMAGE_HEIGHT}`;
+      if (doneLines >= IMAGE_HEIGHT) {
         // Done
         renderBtn.removeAttribute("disabled");
-        showImage();
       }
     }
 
-    function incrProgress() {
-      renderPixels += 1;
+    function incrProgress(id) {
+      doneLines += 1;
+      if (currentLine < IMAGE_HEIGHT) {
+        renderWorkers[id].postMessage({
+          type: "PARTIAL_RENDER",
+          line: currentLine,
+        });
+        currentLine++;
+      }
       setProgress();
     }
 
     function resetProgress() {
-      renderPixels = 0;
-      totalPixels = IMAGE_WIDTH * IMAGE_HEIGHT;
+      doneLines = 0;
       setProgress();
     }
 
@@ -72,15 +81,12 @@
       renderBtn.setAttribute("disabled", "true");
       resetProgress();
       clearImage();
-      let colsPerWorker = IMAGE_WIDTH / workerNum;
       for (let i = 0; i < workerNum; i++) {
-        let start = i * colsPerWorker;
-        let end = Math.min(IMAGE_WIDTH, (i + 1) * colsPerWorker);
         renderWorkers[i].postMessage({
           type: "PARTIAL_RENDER",
-          start,
-          end,
+          line: currentLine,
         });
+        currentLine++;
       }
     }
 
@@ -88,11 +94,11 @@
       for (const worker of renderWorkers) {
         worker.terminate();
       }
-      showImage();
       renderBtn.removeAttribute("disabled");
     }
 
     function initWorkers() {
+      const seed = new Date().getTime();
       renderWorkers = [];
       for (let i = 0; i < workerNum; i++) {
         const worker = new Worker("worker.js");
@@ -105,7 +111,7 @@
         });
         worker.addEventListener("message", (event) => {
           if (event.data.type === "INCR_PROGRESS") {
-            incrProgress();
+            incrProgress(i);
           } else if (event.data.type === "SET_PIXEL") {
             let { x, r, g, b, a } = event.data;
             setPixel(x, r, g, b, a);

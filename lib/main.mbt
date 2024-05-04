@@ -1,25 +1,31 @@
-pub fn render_image(image_width : Int, image_height : Int) -> Unit {
-  println("Start rendering...")
-  let world = create_world()
-  let cam = create_camera(image_width, image_height)
-  cam.render(world)
-  println("Done.")
+struct RayTracer {
+  mut world : Option[HittableList]
+  mut cam : Option[Camera]
 }
 
-pub fn partial_render_image(image_width: Int, image_height: Int, start: Int, end: Int) -> Unit {
-  println("Start partial rendering... [\(start)-\(end)]")
+let tracer : RayTracer = { world: None, cam: None}
+
+pub fn initialize(image_width : Int, image_height : Int) -> Unit {
   let world = create_world()
   let cam = create_camera(image_width, image_height)
-  cam.render_cols(world, start, end)
-  println("Partial rendering done. [\(start)-\(end)]")
+  tracer.world = Some(world)
+  tracer.cam = Some(cam)
 }
 
-fn create_camera(image_width: Int, image_height: Int) -> Camera {
+pub fn render_image() -> Unit {
+  tracer.cam.unwrap().render(tracer.world.unwrap())
+}
+
+pub fn partial_render_image(line : Int) -> Unit {
+  tracer.cam.unwrap().render_line(tracer.world.unwrap(), line)
+}
+
+fn create_camera(image_width : Int, image_height : Int) -> Camera {
   // Camera
   Camera::new(
     image_width,
     image_height,
-    samples_per_pixel=500,
+    samples_per_pixel=100,
     max_depth=50,
     vfov=20.0,
     look_from=point3(13.0, 2.0, 3.0),

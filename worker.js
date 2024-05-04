@@ -1,8 +1,6 @@
 let wasmModule = null;
-let image_width = 0;
-let image_height = 0;
-let random_seed = 0;
 let worker_id = -1;
+let random_seed = 0;
 
 const [log, flush] = (() => {
   let buffer = [];
@@ -51,28 +49,27 @@ const importObject = {
 
 self.addEventListener("message", (event) => {
   if (event.data.type === "INIT") {
+    const { width, height, seed, id } = event.data;
+    worker_id = id;
+    random_seed = seed;
     WebAssembly.instantiateStreaming(
       fetch("target/wasm-gc/release/build/lib/lib.wasm"),
       importObject
     ).then((instantiatedModule) => {
       wasmModule = instantiatedModule;
       wasmModule.instance.exports._start();
+      wasmModule.instance.exports.initialize(width, height);
+      console.log(`Worker ${worker_id} ready.`);
     });
-    const { width, height, seed, id } = event.data;
-    image_width = width;
-    image_height = height;
-    random_seed = seed;
-    worker_id = id;
-    console.log(`Worker ${worker_id} ready.`);
   } else if (event.data.type === "RENDER") {
     console.log(`Worker ${worker_id} start render.`);
     const renderImage = wasmModule.instance.exports["render_image"];
     renderImage(image_width, image_height);
   } else if (event.data.type === "PARTIAL_RENDER") {
-    const { start, end } = event.data;
-    console.log(`Worker ${worker_id} start partial render ${start}-${end}.`);
+    const { line } = event.data;
+    console.log(`Worker ${worker_id} start partial render line ${line}.`);
     const partialRenderImage =
       wasmModule.instance.exports["partial_render_image"];
-    partialRenderImage(image_width, image_height, start, end);
+    partialRenderImage(line);
   }
 });

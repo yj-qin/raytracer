@@ -2,7 +2,7 @@
   "name": "lib",
   "link": {
     "wasm-gc": {
-      "exports": ["render_image", "partial_render_image"]
+      "exports": ["initialize", "render_image", "partial_render_image"]
     }
   }
 }
