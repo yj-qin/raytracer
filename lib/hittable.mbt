@@ -22,10 +22,10 @@ trait Hittable {
   hit(Self, Ray, Interval) -> Option[HitRecord]
 }
 
-type HittableList @vec.Vec[Hittable]
+type HittableList Array[Hittable]
 
 fn HittableList::new() -> HittableList {
-  HittableList(@vec.new())
+  HittableList([])
 }
 
 fn clear(self : HittableList) -> Unit {

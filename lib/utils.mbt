@@ -2,7 +2,7 @@ let pi = 3.1415926535897932385
 
 let infinity : Double = Double::inf(1)
 
-let rand: @random.RandomDouble = @random.RandomDouble::new(random_seed())
+let rand: @random.RandomDouble = @random.RandomDouble::new(seed=random_seed())
 
 fn degrees_to_radians(degrees : Double) -> Double {
   degrees * pi / 180.0
